@@ -1,0 +1,41 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+    - main
+    paths-ignore:
+    - 'Examples/**'
+    - README.md
+    - .gitignore
+  pull_request:
+    branches: 
+    - main
+    paths-ignore:
+    - 'Examples/**'
+    - README.md
+    - .gitignore
+
+env:
+  MAJOR_VERSION: 1
+  MINOR_VERSION: 0
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 3.1.x
+    - name: Restore dependencies
+      run: dotnet restore
+    - name: Build
+      run: dotnet build -c Release --no-restore
+    - name: Test
+      run: dotnet test -c Release --no-build --verbosity normal
+    - name: Pack
+      run: dotnet pack -c Release --no-build -p:Version=${{ format('{0}.{1}.{2}{3}', env.MAJOR_VERSION, env.MINOR_VERSION, github.run_number, github.ref != 'refs/heads/main' && '-beta' || '') }}
+    - name: Publish
+      run: dotnet nuget push ResponsibleChains/bin/Release/*.nupkg --source 'https://api.nuget.org/v3/index.json' --api-key ${{ secrets.NUGET_KEY }} --skip-duplicate
